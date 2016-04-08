@@ -1,0 +1,639 @@
+#!/bin/sh
+
+# Process ETDs.
+# Define various functions which will do discrete pieces of the processing.
+
+###########################################################################
+# Initialize script with configuration.
+_initialize() {
+  # Get full path to script, to use as base
+  # Assumes scripts are in BASE/bin, config in BASE/config, etc.
+  DIR=`dirname $0`
+  BASE=`(cd $DIR/.. && pwd)`
+
+  # Get config info
+  CONFIG=${BASE}/config
+  . ${CONFIG}/*
+
+  # Make new files and directories read/write for owner/group, no access for others.
+  umask 007
+
+  _check_directories
+}
+
+###########################################################################
+# Make sure local directories exist and have correct permissions.
+_check_directories() {
+  for DIR in $FILES_INCOMING $FILES_PENDING $FILES_ARCHIVE; do
+    if [ ! -d ${DIR} ]; then
+      echo "Creating ${DIR}..."
+      mkdir -p ${DIR}
+    fi
+  done
+}
+
+###########################################################################
+# Get new files from sftp server
+_get_incoming_files() {
+  (
+    echo "ls -l ${UCLA_SFTP_INCOMING}"
+    # get -P preserves file attributes
+    echo "get -P ${UCLA_SFTP_INCOMING}/* ${FILES_INCOMING}"
+  ) | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER} 2>/dev/null
+
+  # Log info about incoming files
+  find ${FILES_INCOMING} -type f | while read ETD; do
+    _get_proquest_id ${ETD}
+    _log_message ${PROQUEST_ID} ${STATUS_RETRIEVED} "Retrieved `basename ${ETD}`"
+  done
+}
+
+###########################################################################
+# Get ProQuest id from filename inside zipped ETD
+# Use before initial file has been unzipped and deleted.
+# Sets ${PROQUEST_ID} for caller to use.
+_get_proquest_id() {
+  ETD=$1
+  # Each ETD should contain only one *_DATA.xml file, for example:
+  # Lucero_ucla_0031D_14054_DATA.xml
+  # The ProQuest id is the set of digits before _DATA.xml (the 4th field).
+  # To be safest, take the first matching line, and look for 5+ digits in the 4th field.
+  PROQUEST_ID=`
+    unzip -Z -1 ${ETD} *_DATA.xml | \
+    head -1 | \
+    cut -d_ -f4 | \
+    grep "^[0-9]\{5,\}"
+    `
+  if [ -z "${PROQUEST_ID}" ]; then
+    # Set default invalid value to make database happy
+    PROQUEST_ID=0
+    _log_error ${PROQUEST_ID} "Could not get ProQuest id from file ${ETD}"
+  fi
+}
+
+###########################################################################
+# Unzip ETD archive into subdirectory named for ProQuest id
+_unzip_archive() {
+  ETD=$1
+  _get_proquest_id ${ETD}
+  if [ ${PROQUEST_ID} -ne 0 ]; then
+    # If target directory already exists, exit function with error
+    TARGET=${FILES_PENDING}/${PROQUEST_ID}
+    if [ -d ${TARGET} ]; then
+      _log_error ${PROQUEST_ID} "Target directory ${TARGET} already exists"
+      return 1
+    else
+      TARGET_DIR=${FILES_PENDING}/${PROQUEST_ID}
+      unzip -q ${ETD} -d ${TARGET_DIR}
+      RETURN_CODE=$?
+      if [ ${RETURN_CODE} -eq 0 ]; then
+	_log_message ${PROQUEST_ID} ${STATUS_UNZIPPED} "Unzipped to ${TARGET_DIR}"
+	# Unzip succeeded, so delete original ETD zip file once we're done with it
+	_log_etd_metadata ${ETD}
+	# TODO: On success, should also delete original ETD from UCLA_SFTP_INCOMING
+	_DEBUG "Archiving ${ETD}"
+	mv ${ETD} ${FILES_ARCHIVE}
+	# TODO: Use sftp batch mode for better error handling?
+	SFTP_ETD=`basename ${ETD}`
+	_DEBUG "Deleting ${UCLA_SFTP_INCOMING}/${SFTP_ETD}"
+	echo "rm ${UCLA_SFTP_INCOMING}/${SFTP_ETD}" | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER}
+      else
+        _log_error ${PROQUEST_ID} "Non-zero return code ${RETURN_CODE} unzipping ${ETD}"
+      fi
+      # ETD zip files from ProQuest have undesirable perms on contents: 666 for files, 755 for subdirs.
+      # umask doesn't affect this, as PQ's zip files have permissions embedded, so
+      # reset permissions after unzipping.
+      chmod -R g+w,o-rwx ${TARGET_DIR}
+    fi
+  fi
+}
+
+###########################################################################
+# Upload unpacked ETD archives to sftp server for Graduate Division.
+# They don't like zip files so we send them the unpacked version.
+# Solaris sftp client is primitive - no -r recursion - and our sftp server
+# currently does not allow scp/rsync - see MAINT-1613.
+# Can't mput due to occasional subdirectories.
+# TODO: Replace convoluted upload with one-liner if/when things improve.
+_send_files_to_graddiv() {
+  PROQUEST_ID=$1
+  # Check for required status before proceeding
+  if _has_status ${PROQUEST_ID} ${STATUS_UNZIPPED}; then
+    SOURCE_DIR=${FILES_PENDING}/${PROQUEST_ID}
+    TARGET_DIR=${UCLA_SFTP_GRADDIV}/${PROQUEST_ID}
+    SFTP_SCRIPT=/tmp/etd_sftp_to_graddiv.$$
+    rm -f ${SFTP_SCRIPT}
+    if [ -d ${SOURCE_DIR} ]; then
+      find ${SOURCE_DIR} | while read ENTRY; do
+        # Strip off path before the ProQuest ID
+        TARGET=`echo "${ENTRY}" | sed "s#${FILES_PENDING}/##"`
+        TARGET="${UCLA_SFTP_GRADDIV}/${TARGET}"
+        # Upload each to sftp server, creating directories/files as needed
+        if [ -d "${ENTRY}" ]; then
+          echo "mkdir ${TARGET}" >> ${SFTP_SCRIPT}
+        elif [ -f "${ENTRY}" ]; then
+          echo "put \"${ENTRY}\" \"${TARGET}\"" >> ${SFTP_SCRIPT}
+        fi
+      done # find SOURCE_DIR
+      # Use sftp's batch mode, for better error handling.
+      # First command is directory creation; if that fails, whole script fails.
+      sftp -b ${SFTP_SCRIPT} ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER}
+      RETURN_CODE=$?
+      if [ ${RETURN_CODE} -ne 0 ]; then
+        _log_error ${PROQUEST_ID} "Unable to upload to ${TARGET_DIR}"
+      else
+        _log_message ${PROQUEST_ID} ${STATUS_GRADDIV} "Uploaded to Graduate Division"
+      fi
+      rm ${SFTP_SCRIPT}
+    fi # ${SOURCE_DIR}
+  fi # _has_status
+}
+
+###########################################################################
+# Get name of DATA xml file from unzipped ETD
+# Sets ${XML} for caller to use.
+_get_etd_xml() {
+  PROQUEST_ID=$1
+  # Should only be one *_DATA.xml but limit to first one to be safe
+  XML=`find ${FILES_PENDING}/${PROQUEST_ID} -name "*_DATA.xml" | head -1`
+  if [ -z "${XML}" ]; then
+    _log_error ${PROQUEST_ID} "Unable to find XML file for ProQuest ID ${PROQUEST_ID}"
+  fi
+}
+
+###########################################################################
+# Capture selected metadata from XML to database.
+_log_etd_metadata() {
+  ETD=$1
+  _get_proquest_id ${ETD}
+  _get_etd_xml ${PROQUEST_ID}
+  if [ -r ${XML} ]; then
+    DATA=`\
+    ${JAVA} -cp "${CLASSPATH}" ${TAG_FINDER} \
+      ${XML} \
+      DISS_surname DISS_fname DISS_title \
+      DISS_degree DISS_inst_contact DISS_cat_desc \
+      DISS_accept_date DISS_submission@embargo_code \
+      DISS_agreement_decision_date DISS_sales_restriction@remove DISS_delayed_release \
+    `
+    ETD_DATE=`ls -E ${ETD} | awk '{print $6}'`
+    ETD_NAME=`basename ${ETD}`
+
+    TMPFILE=/tmp/etd_metadata.${PROQUEST_ID}
+    # Capture everything we want except UCLA acceptance and release dates, which we'll get later.
+    printf '%s\t%s\t%s\t%s\n' ${PROQUEST_ID} ${ETD_NAME} ${ETD_DATE} "${DATA}" > ${TMPFILE}
+    # Import the data into database.
+    ${BIN}/vger_sqlldr_load ${SCHEMA} ${TMPFILE} ${SQL_BASE}/etd_metadata.ctl
+    # TODO: Check vger_sqlldr_load log for errors and handle accordingly.
+    # Remove data file and log from vger_sqlldr_load
+    rm ${TMPFILE} ${TMPFILE}.log
+  fi
+}
+
+###########################################################################
+# Get embargo code from XML
+# Sets ${EMBARGO_CODE} for caller to use.
+_get_embargo_code() {
+  PROQUEST_ID=$1
+  _get_etd_xml ${PROQUEST_ID}
+  EMBARGO_CODE=
+  if [ -r ${XML} ]; then
+    EMBARGO_CODE=`${JAVA} -cp "${CLASSPATH}" ${TAG_FINDER} ${XML} DISS_submission@embargo_code`
+  fi
+  _DEBUG "Embargo code: ${EMBARGO_CODE}"
+}
+
+###########################################################################
+# Get UCLA acceptance date from Graduate Division
+_get_ucla_acceptance_date() {
+  PROQUEST_ID=$1
+  if _has_status ${PROQUEST_ID} ${STATUS_ACCEPTED}; then
+    # No action - can't negate the _has_status function call for some reason, so use "empty" statement colon
+    :
+  else
+    UCLA_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
+    if [ "${UCLA_ACCEPT_DATE}" ]; then
+      _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
+    else
+      _log_error ${PROQUEST_ID} "No UCLA acceptance date from Graduate Division"
+    fi
+  fi
+  _DEBUG "UCLA Acceptance date: ${UCLA_ACCEPT_DATE}"
+}
+
+###########################################################################
+# Calculate UCLA release date for ETD
+# If embargo code = 0, use UCLA acceptance date.
+# If embargo code = 4, calculate by passing several values to Java program.
+# Any other embargo code, log an error.
+_get_release_date() {
+  PROQUEST_ID=$1
+  _get_ucla_acceptance_date ${PROQUEST_ID}
+  if [ "${UCLA_ACCEPT_DATE}" ]; then
+    _get_embargo_code ${PROQUEST_ID}
+    case ${EMBARGO_CODE} in
+      0 ) UCLA_RELEASE_DATE=${UCLA_ACCEPT_DATE}
+	  ;;
+      4 ) _get_etd_xml ${PROQUEST_ID}
+          if [ -r ${XML} ]; then
+            PQ_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${TAG_FINDER} ${XML} DISS_accept_date`
+            PQ_RELEASE_DATE=`${JAVA} -cp "${CLASSPATH}" ${TAG_FINDER} ${XML} DISS_sales_restriction@remove`
+            # Convert date format for release date calculator
+            _DEBUG "BEFORE: PQ Acceptance date: ${PQ_ACCEPT_DATE} *** PQ Release date: ${PQ_RELEASE_DATE}"
+            PQ_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${DATE_FORMAT_CONVERTER} "${PQ_ACCEPT_DATE}" "MM/dd/yyyy" "yyyy-MM-dd HH:mm:ss"`
+	    PQ_RELEASE_DATE=`${JAVA} -cp "${CLASSPATH}" ${DATE_FORMAT_CONVERTER} "${PQ_RELEASE_DATE}" "MM/dd/yyyy" "yyyy-MM-dd HH:mm:ss"`
+            _DEBUG "AFTER : PQ Acceptance date: ${PQ_ACCEPT_DATE} *** PQ Release date: ${PQ_RELEASE_DATE}"
+          fi
+	  UCLA_RELEASE_DATE=`${JAVA} -cp "${CLASSPATH}" ${RELEASE_DATE_CALCULATOR} "${PQ_ACCEPT_DATE}" "${PQ_RELEASE_DATE}" "${UCLA_ACCEPT_DATE}"`
+          ;;
+      * ) UCLA_RELEASE_DATE=
+          _log_error ${PROQUEST_ID} "Cannot calculate UCLA release date for embargo code ${EMBARGO_CODE}"
+    esac
+    if [ "${UCLA_RELEASE_DATE}" ]; then
+      _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}" "${UCLA_RELEASE_DATE}"
+    else
+      _log_error ${PROQUEST_ID} "UCLA release date is empty"
+    fi
+    _DEBUG "UCLA Release date: ${UCLA_RELEASE_DATE}"
+  fi # ${UCLA_ACCEPT_DATE}
+}
+
+###########################################################################
+# Capture UCLA acceptance and release dates to database.
+_log_ucla_dates() {
+  PROQUEST_ID=$1
+  UCLA_ACCEPT_DATE=$2
+  UCLA_RELEASE_DATE=$3
+  _DEBUG "${PROQUEST_ID} ***** ${UCLA_ACCEPT_DATE} ***** ${UCLA_RELEASE_DATE}"
+  # Need to escape-quote dates to preserve quotes for vger_sqlplus_run
+  SQL_SCRIPT=${SQL_BASE}/etd_ucla_dates_add.sql
+  # Suppress output from vger_sqlplus_run
+  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} \"${UCLA_ACCEPT_DATE}\" \"${UCLA_RELEASE_DATE}\" > /dev/null
+  rm ${SQL_SCRIPT}.out
+}
+
+###########################################################################
+# Update ETD XML metadata with embargo code and dates.
+# Requires: XML, EMBARGO_CODE, UCLA_ACCEPT_DATE and UCLA_RELEASE_DATE. 
+_update_etd_xml() {
+  PROQUEST_ID=$1
+  # TODO: _get_release_date may or may not call _get_etd_xml
+  # _get_release_date needs to be called to set EMBARGO_CODE, UCLA_ACCEPT_DATE and UCLA_RELEASE_DATE
+  # Always call here, or check those values first?
+  # TODO: May need to check values anyhow - what if caller couldn't set some of them?
+  _get_etd_xml ${PROQUEST_ID}
+  _get_release_date ${PROQUEST_ID}
+
+  if [ "${EMBARGO_CODE}" -a "${UCLA_ACCEPT_DATE}" -a "${UCLA_RELEASE_DATE}" ]; then
+    # Java program will throw meaningful error if XML not found or not readable/writeable, so no extra test here.
+    # Make backup of XML first - while testing at least
+    if _DEBUG_MODE; then cp -p ${XML} ${XML}.bak; fi
+    ${JAVA} -cp "${CLASSPATH}" ${ETD_METADATA_UPDATER} ${XML} ${EMBARGO_CODE} "${UCLA_ACCEPT_DATE}" "${UCLA_RELEASE_DATE}"
+    RETURN_CODE=$?
+    if [ ${RETURN_CODE} -eq 0 ]; then
+      _log_message ${PROQUEST_ID} ${STATUS_XML_UPDATED} "Updated XML file ${XML}"
+      _DEBUG "XML changes"
+      if _DEBUG_MODE; then 
+	diff -U0 ${XML}.bak ${XML}
+        rm ${XML}.bak
+      fi
+    else
+      _log_error ${PROQUEST_ID} "Could not update ${XML}: error code ${RETURN_CODE}, embargo code ${EMBARGO_CODE}, acceptance date ${UCLA_ACCEPT_DATE}, release date ${UCLA_RELEASE_DATE}"
+    fi
+  fi
+}
+
+###########################################################################
+# Write Meritt Electronic Resource Citation file
+# Needs to be called after _update_etd_xml as it uses the updated acceptance date.
+_write_erc_file() {
+  PROQUEST_ID=$1
+  # Check for required status before proceeding
+  if _has_status ${PROQUEST_ID} ${STATUS_XML_UPDATED}; then
+    _get_etd_xml ${PROQUEST_ID}
+    if [ -r ${XML} ]; then
+      ETD_DIR=`dirname ${XML}`
+      # ERC_FILE_WRITER requires trailing slash on ETD_DIR
+      ${JAVA} -cp "${CLASSPATH}" ${ERC_FILE_WRITER} ${XML} ${ETD_DIR}/
+      # Make sure file was created
+      ERC_FILE=${ETD_DIR}/mrt-erc.txt
+      if [ -s ${ERC_FILE} ]; then
+        _log_message ${PROQUEST_ID} ${STATUS_ERC} "Created ERC file ${ERC_FILE}"
+        _DEBUG "Checking ERC file contents"
+        cat ${ERC_FILE}
+      else
+        _log_error ${PROQUEST_ID} "Unable to create ERC file ${ERC_FILE}"
+      fi
+    else
+      _log_error ${PROQUEST_ID} "Unable to read XML file to create ERC file ${ERC_FILE}"
+    fi # ${XML}
+  fi # _has_status
+}
+
+###########################################################################
+# Create zip file of modified ETD for Merritt
+_create_zip_for_merritt() {
+  PROQUEST_ID=$1
+  # Check for required status before proceeding
+  if _has_status ${PROQUEST_ID} ${STATUS_ERC}; then
+    ETD=${FILES_PENDING}/${PROQUEST_ID}
+    ZIP_FILE=/tmp/${PROQUEST_ID}.zip
+    # Do not keep paths in zip file
+    zip -9jqr ${ZIP_FILE} ${ETD}
+    RETURN_CODE=$?
+    if [ ${RETURN_CODE} -eq 0 ]; then
+      _log_message ${PROQUEST_ID} ${STATUS_ZIPPED} "Zipped new archive for Merritt: ${ZIP_FILE}"
+    else
+      _log_error ${PROQUEST_ID} "Non-zero return code ${RETURN_CODE} zipping file for Merritt: ${ZIP_FILE}"
+    fi
+    _DEBUG "Check zip contents..."
+    if _DEBUG_MODE; then unzip -l ${ZIP_FILE}; fi
+  fi
+}
+
+###########################################################################
+# Upload modified ETD zip file to CDL for Merritt
+_upload_to_cdl() {
+  PROQUEST_ID=$1
+  # Check for required status before proceeding
+  if _has_status ${PROQUEST_ID} ${STATUS_ZIPPED}; then
+    # _create_zip_for_merritt should have created /tmp/PROQUEST_ID.zip
+    ZIP_FILE=/tmp/${PROQUEST_ID}.zip
+    if [ -s ${ZIP_FILE} ]; then
+      # TODO: Use sftp batch mode for better error handling?
+      echo "put ${ZIP_FILE} ${CDL_SFTP_ETD_DIR}" | sftp ${CDL_SFTP_USER}@${CDL_SFTP_SERVER}
+      # This assumes success, which is bad...
+      _log_message ${PROQUEST_ID} ${STATUS_TO_CDL} "Uploaded ETD to CDL for Merritt: ${ZIP_FILE}"
+      _send_status_by_email ${PROQUEST_ID}
+      _DEBUG "Deleting zip file ${ZIP_FILE}..."
+      rm ${ZIP_FILE}
+    fi
+  fi
+}
+
+###########################################################################
+# Retrieve MARC records from CDL
+_get_marc_records_from_cdl() {
+  # Retrieve all MARC files
+  # TODO: Use sftp batch mode for better error handling?
+  _DEBUG "Retrieving MARC records from CDL..."
+  (
+    echo "get -P ${CDL_SFTP_MARC_DIR}/*.mrc ${MARC_INCOMING}" 
+    echo "rm ${CDL_SFTP_MARC_DIR}/*.mrc"
+  ) | sftp ${CDL_SFTP_USER}@${CDL_SFTP_SERVER} 2>/dev/null
+  # umask (set in _initialize) doesn't seem to help here, so fix permissions on these new files.
+  # chmod complains if no files, so quick test for existence
+  if ls ${MARC_INCOMING}/* > /dev/null 2>&1; then
+    chmod g+w ${MARC_INCOMING}/*
+  else
+    echo "NO FILES"
+  fi
+}
+
+###########################################################################
+# Load MARC records from CDL
+_load_marc_records() {
+  # Assumes MARC_INCOMING has no subdirectories (it shouldn't); no -maxdepth in Solaris find
+  ls -1 ${MARC_INCOMING}/*.mrc 2>/dev/null | while read MARC_FILE; do
+    # vger_bulkimport_file puts logs in current directory
+    cd ${MARC_INCOMING}
+    _DEBUG "Loading ${MARC_FILE} into Voyager..."
+    ${BIN}/vger_bulkimport_file ${MARC_FILE} ucladb ETDCDL
+    # Get filename without directory, so we can match it with the log
+    MARC_BASE_FILENAME=`basename ${MARC_FILE}`
+    mv *${MARC_BASE_FILENAME}* ${MARC_ARCHIVE}
+  done
+}
+
+###########################################################################
+# Update MARC status information
+_update_marc_status() {
+  _DEBUG "Updating MARC status..."
+  SQL_SCRIPT=${SQL_BASE}/etd_link_to_voyager.sql
+  # Suppress output from vger_sqlplus_run
+  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} > /dev/null
+  # Include output from sql script in this script's output
+  cat ${SQL_SCRIPT}.out
+  rm ${SQL_SCRIPT}.out
+}
+
+###########################################################################
+# Delete ETDs older than retention policy
+_delete_old_etds() {
+  # Use archive file date to determine age
+  find ${FILES_ARCHIVE} -type f -name "etdadmin*.zip" -mtime +${DAYS_TO_KEEP} | while read ETD; do
+    _get_proquest_id ${ETD}
+    _DEBUG "Deleting old files for ${PROQUEST_ID}..."
+    if _has_status ${PROQUEST_ID} ${STATUS_TO_CDL} &&
+       _has_status ${PROQUEST_ID} ${STATUS_CDL_MARC}
+    then
+      # Delete the zip archive file
+      _DEBUG "  Deleting ${ETD}"
+      rm ${ETD}
+      # Delete the unzipped files
+      if [ -d ${FILES_PENDING}/${PROQUEST_ID} ]; then
+        _DEBUG "  Deleting ${FILES_PENDING}/${PROQUEST_ID}"
+        rm -r ${FILES_PENDING}/${PROQUEST_ID}
+      else
+	_DEBUG "  Not found: ${FILES_PENDING}/${PROQUEST_ID}"
+      fi
+      # Delete graddiv copy from SFTP
+      _delete_from_graddiv ${PROQUEST_ID}
+    else
+      # TODO: Make this a logged error, after cleanup is done
+      _DEBUG "  WARNING: ${PROQUEST_ID} does not have status supporting deletion"
+    fi # _has_status
+  done
+}
+
+###########################################################################
+# Delete ETDs from Graduate Division directory on our SFTP server
+_delete_from_graddiv() {
+  PROQUEST_ID=$1
+  TARGET=${UCLA_SFTP_GRADDIV}/${PROQUEST_ID}
+  _DEBUG "Deleting ${TARGET}"
+  # Our SFTP client/server doesn't support rm -rf so have to check for
+  # subdirectories, remove files/subdirs if they exist, then the main dir.
+  # sftp client prints echoes all commands; we don't care if the directories
+  # don't exist, so ignore the output.
+  SUBDIR=`echo "ls -l ${TARGET}" | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER} 2>/dev/null | tail +4 | grep "^d" | awk '{print $9}'`
+  (
+    if [ -n "${SUBDIR}" ]; then
+      echo "rm ${TARGET}/${SUBDIR}/*"
+      echo "rmdir ${TARGET}/${SUBDIR}"
+    fi
+
+    echo "rm ${TARGET}/*"
+    echo "rmdir ${TARGET}"
+  ) | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER} > /dev/null 2>&1
+}
+
+###########################################################################
+# Send email with status info about a given ProQuest ID
+# TODO: If needed, make this more generic
+_send_status_by_email() {
+  PROQUEST_ID=$1
+  SQL_SCRIPT=${SQL_BASE}/show_etd_status.sql
+  # Suppress output from vger_sqlplus_run
+  $BIN/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} > /dev/null
+  # Send results (if any) via email 
+  if [ -s ${SQL_SCRIPT}.out ]; then
+    cat ${SQL_SCRIPT}.out | mailx -s "ProQuest ETD ${PROQUEST_ID} sent to CDL" "${EMAIL_RECIPIENTS}"
+    _DEBUG "Sending email..."
+  fi
+  rm ${SQL_SCRIPT}.out
+}
+
+###########################################################################
+# Get list of ProQuest IDs with a particular status
+_get_ids_by_status() {
+  STATUS=$1
+  SQL_SCRIPT=${SQL_BASE}/get_ids_by_status.sql
+  # Suppress output from vger_sqlplus_run
+  $BIN/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${STATUS} > /dev/null
+  # Send results (if any) to stdout
+  if [ -s ${SQL_SCRIPT}.out ]; then
+    cat ${SQL_SCRIPT}.out
+  fi
+  rm ${SQL_SCRIPT}.out
+}
+
+###########################################################################
+# Check whether an ETD has a particular status
+# TODO: Compare with _log_message, be consistent with explicit vs. var for sql script name.
+_has_status() {
+  PROQUEST_ID=$1
+  STATUS=$2
+  # Suppress output from vger_sqlplus_run
+  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_HAS_STATUS} ${PROQUEST_ID} ${STATUS} > /dev/null
+  # SQL output is either "true" or "false"; capture grep exit code and return that to caller.
+  grep "true" ${SQL_HAS_STATUS}.out > /dev/null
+  FOUND=$?
+  # Clean up
+  rm ${SQL_HAS_STATUS}.out
+  return ${FOUND}
+}
+
+###########################################################################
+# Write messages to log
+_log_message() {
+  ID=$1
+  STATUS=$2
+  MESSAGE=$3
+  _DEBUG "${ID} ***** ${STATUS} ***** ${MESSAGE}"
+  # Need to escape-quote MESSAGE to preserve quotes for vger_sqlplus_run
+  SQL_SCRIPT=${SQL_BASE}/etd_status_add.sql
+  # Suppress output from vger_sqlplus_run
+  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${ID} ${STATUS} \"${MESSAGE}\" > /dev/null
+  rm ${SQL_SCRIPT}.out
+}
+
+###########################################################################
+# Decorate error messages before logging
+_log_error() {
+  ID=$1
+  MESSAGE=$2
+  STATUS=${STATUS_ERROR}
+  _log_message ${ID} ${STATUS} "${MESSAGE}"
+
+  # Also send email for immediate alert
+  echo "${MESSAGE}" | mailx -s "ERROR processing ETD ${ID}" "${EMAIL_RECIPIENTS}"
+}
+
+###########################################################################
+# Convenience function for debugging
+_DEBUG_MODE() {
+  if [ ${DEBUG_FLAG} = TRUE ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+###########################################################################
+# Print debugging message
+_DEBUG() {
+  if _DEBUG_MODE; then
+    echo "DEBUG: $1"
+  fi
+}
+
+###########################################################################
+# Put test code here
+_TEST() {
+#  _TEST_CLEANUP
+  PROQUEST_ID=14099
+  _send_status_by_email ${PROQUEST_ID}
+}
+
+###########################################################################
+# Run sql script for testing only
+_TEST_RUN_SQL() {
+  SQL_SCRIPT=$1
+  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT}
+  cat ${SQL_SCRIPT}.out
+  rm ${SQL_SCRIPT}.out
+}
+
+###########################################################################
+# Clean up from testing
+_TEST_CLEANUP() {
+  rm -rf ${FILES_PENDING}/*
+  rm -rf ${FILES_INCOMING}/etdadmin*.zip
+  sftp -b ${BASE}/test/TEST_clean_graddiv ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER}
+  _TEST_RUN_SQL ${TEST_BASE}/TEST_clean_etd_status.sql
+}
+
+###########################################################################
+# Phase 1: Retrieve ETDs, unzip, deliver to Grad Div
+_phase_1() {
+  _DEBUG "Phase 1"
+  _get_incoming_files
+  # Do initial processing of each new archive
+  find ${FILES_INCOMING} -type f -name "etdadmin*.zip" | while read ETD; do
+    # Need to get ProQuest ID before deleting zip file after unzipping
+    _get_proquest_id ${ETD}
+    _unzip_archive ${ETD}
+    _send_files_to_graddiv ${PROQUEST_ID}
+  done
+}
+
+###########################################################################
+# Phase 2: Update ETD, deliver to CDL
+_phase_2() {
+  _DEBUG "Phase 2"
+  # Act on ETDs which have been sent to GradDiv
+  _get_ids_by_status ${STATUS_GRADDIV} | while read PROQUEST_ID; do
+    _update_etd_xml ${PROQUEST_ID}
+    _write_erc_file ${PROQUEST_ID}
+    _create_zip_for_merritt ${PROQUEST_ID}
+    _upload_to_cdl ${PROQUEST_ID}
+  done
+}
+
+###########################################################################
+# Phase 3: Retrieve MARC records from CDL and load into Voyager
+_phase_3() {
+  _DEBUG "Phase 3"
+  _get_marc_records_from_cdl
+  _load_marc_records
+  _update_marc_status
+}
+
+###########################################################################
+# Phase 4: Remove old ETDs per retention policy
+_phase_4() {
+  _DEBUG "Phase 4"
+  _delete_old_etds
+}
+
+###########################################################################
+# Main routine starts here.
+_initialize
+
+# TODO: Controller to handle command-line arguments
+_phase_1
+_phase_2
+_phase_3
+_phase_4
+

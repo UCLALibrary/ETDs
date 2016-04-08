@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions
+     name="ProquestFilerService"
+     targetNamespace="http://tempuri.org/"
+     xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+     xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+     xmlns:wsx="http://schemas.xmlsoap.org/ws/2004/09/mex"
+     xmlns:wsa10="http://www.w3.org/2005/08/addressing"
+     xmlns:wsap="http://schemas.xmlsoap.org/ws/2004/08/addressing/policy"
+     xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+     xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata"
+     xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+     xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing"
+     xmlns:wsaw="http://www.w3.org/2006/05/addressing/wsdl"
+     xmlns:tns="http://tempuri.org/"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+     xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+     xmlns:msc="http://schemas.microsoft.com/ws/2005/12/wsdl/contract"
+     xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+    >
+    <wsp:Policy wsu:Id="wsHttpEndpoint_policy">
+        <wsp:ExactlyOne>
+            <wsp:All>
+                <sp:TransportBinding xmlns:sp="http://schemas.xmlsoap.org/ws/2005/07/securitypolicy">
+                    <wsp:Policy>
+                        <sp:TransportToken>
+                            <wsp:Policy>
+                                <sp:HttpsToken RequireClientCertificate="false"/>
+                            </wsp:Policy>
+                        </sp:TransportToken>
+                        <sp:AlgorithmSuite>
+                            <wsp:Policy>
+                                <sp:Basic256/>
+                            </wsp:Policy>
+                        </sp:AlgorithmSuite>
+                        <sp:Layout>
+                            <wsp:Policy>
+                                <sp:Strict/>
+                            </wsp:Policy>
+                        </sp:Layout>
+                    </wsp:Policy>
+                </sp:TransportBinding>
+                <wsaw:UsingAddressing/>
+            </wsp:All>
+        </wsp:ExactlyOne>
+    </wsp:Policy>
+    <wsdl:types>
+        <xsd:schema targetNamespace="http://tempuri.org/Imports">
+            <xsd:import schemaLocation="GD.CommServices.ProquestFilerService.svc_xsd_xsd0.xsd" namespace="http://tempuri.org/"/>
+            <xsd:import schemaLocation="GD.CommServices.ProquestFilerService.svc_xsd_xsd1.xsd"
+                 namespace="http://schemas.microsoft.com/2003/10/Serialization/"/>
+            <xsd:import schemaLocation="GD.CommServices.ProquestFilerService.svc_xsd_xsd2.xsd"
+                 namespace="http://schemas.datacontract.org/2004/07/GD.CommServices"/>
+            <xsd:import schemaLocation="GD.CommServices.ProquestFilerService.svc_xsd_xsd3.xsd"
+                 namespace="http://schemas.datacontract.org/2004/07/GD.CommServices.Model"/>
+        </xsd:schema>
+    </wsdl:types>
+    <wsdl:message name="IProquestFilerService_GetProquestFilersForAll_InputMessage">
+        <wsdl:part name="parameters" element="tns:GetProquestFilersForAll"/>
+    </wsdl:message>
+    <wsdl:message name="IProquestFilerService_GetProquestFilersForAll_OutputMessage">
+        <wsdl:part name="parameters" element="tns:GetProquestFilersForAllResponse"/>
+    </wsdl:message>
+    <wsdl:message name="IProquestFilerService_GetProquestFilerForProquestID_InputMessage">
+        <wsdl:part name="parameters" element="tns:GetProquestFilerForProquestID"/>
+    </wsdl:message>
+    <wsdl:message name="IProquestFilerService_GetProquestFilerForProquestID_OutputMessage">
+        <wsdl:part name="parameters" element="tns:GetProquestFilerForProquestIDResponse"/>
+    </wsdl:message>
+    <wsdl:portType name="IProquestFilerService">
+        <wsdl:operation name="GetProquestFilersForAll">
+            <wsdl:input message="tns:IProquestFilerService_GetProquestFilersForAll_InputMessage" wsaw:Action="http://tempuri.org/IProquestFilerService/GetProquestFilersForAll"/>
+            <wsdl:output message="tns:IProquestFilerService_GetProquestFilersForAll_OutputMessage"
+                 wsaw:Action="http://tempuri.org/IProquestFilerService/GetProquestFilersForAllResponse"/>
+        </wsdl:operation>
+        <wsdl:operation name="GetProquestFilerForProquestID">
+            <wsdl:input message="tns:IProquestFilerService_GetProquestFilerForProquestID_InputMessage"
+                 wsaw:Action="http://tempuri.org/IProquestFilerService/GetProquestFilerForProquestID"/>
+            <wsdl:output message="tns:IProquestFilerService_GetProquestFilerForProquestID_OutputMessage"
+                 wsaw:Action="http://tempuri.org/IProquestFilerService/GetProquestFilerForProquestIDResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="wsHttpEndpoint" type="tns:IProquestFilerService">
+        <wsp:PolicyReference URI="#wsHttpEndpoint_policy"/>
+        <soap12:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="GetProquestFilersForAll">
+            <soap12:operation style="document" soapAction="http://tempuri.org/IProquestFilerService/GetProquestFilersForAll"
+                 soapActionRequired="false"/>
+            <wsdl:input>
+                <soap12:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap12:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+        <wsdl:operation name="GetProquestFilerForProquestID">
+            <soap12:operation style="document" soapAction="http://tempuri.org/IProquestFilerService/GetProquestFilerForProquestID"
+                 soapActionRequired="false"/>
+            <wsdl:input>
+                <soap12:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap12:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="ProquestFilerService">
+        <wsdl:port name="wsHttpEndpoint" binding="tns:wsHttpEndpoint">
+            <soap12:address location="https://gd.commservices.grad.ucla.edu/GD.CommServices.ProquestFilerService.svc"/>
+            <wsa10:EndpointReference>
+                <wsa10:Address>https://gd.commservices.grad.ucla.edu/GD.CommServices.ProquestFilerService.svc</wsa10:Address>
+            </wsa10:EndpointReference>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

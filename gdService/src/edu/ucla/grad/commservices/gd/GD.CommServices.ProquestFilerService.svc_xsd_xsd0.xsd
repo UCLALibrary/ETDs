@@ -1,0 +1,35 @@
+<xs:schema elementFormDefault="qualified" targetNamespace="http://tempuri.org/" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:tns="http://tempuri.org/">
+    <xs:import schemaLocation="GD.CommServices.ProquestFilerService.svc_xsd_xsd2.xsd" namespace="http://schemas.datacontract.org/2004/07/GD.CommServices"/>
+    <xs:element name="GetProquestFilersForAll">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" name="gdToken" nillable="true" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="GetProquestFilersForAllResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" name="GetProquestFilersForAllResult" nillable="true" type="q1:ReturnResultsForProquestFilers"
+                     xmlns:q1="http://schemas.datacontract.org/2004/07/GD.CommServices"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="GetProquestFilerForProquestID">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" name="gdToken" nillable="true" type="xs:string"/>
+                <xs:element minOccurs="0" name="proquestID" nillable="true" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="GetProquestFilerForProquestIDResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" name="GetProquestFilerForProquestIDResult" nillable="true" type="q2:ReturnResultsForProquestFilersByID"
+                     xmlns:q2="http://schemas.datacontract.org/2004/07/GD.CommServices"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

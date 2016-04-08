@@ -1,0 +1,158 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<jdevws:WebServiceProxy xmlns:jdevws="http://xmlns.oracle.com/jdeveloper/10130/webserviceproxy">
+   <list n="CHILD_NODES">
+      <url path="ProquestFilerService.xml"/>
+      <url path="ProquestFilerService.wsdl"/>
+      <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd3.xsd"/>
+      <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd2.xsd"/>
+      <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd1.xsd"/>
+      <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd0.xsd"/>
+      <url path="ProquestFilerService.java"/>
+      <url path="GetProquestFilerForProquestIDResponse.java"/>
+      <url path="VwProQuestFiler.java"/>
+      <url path="GetProquestFilerForProquestID.java"/>
+      <url path="GetProquestFilersForAllResponse.java"/>
+      <url path="ObjectFactory.java"/>
+      <url path="IProquestFilerService.java"/>
+      <url path="package-info.java"/>
+      <url path="ArrayOfvwProQuestFiler.java"/>
+      <url path="WsHttpEndpointClient.java"/>
+      <url path="ReturnResultsForProquestFilers.java"/>
+      <url path="ReturnResultsForProquestFilersByID.java"/>
+      <url path="GetProquestFilersForAll.java"/>
+   </list>
+   <hash n="DATA_MODEL">
+      <value n="ATTACHMENT_ENCODING" v="MTOM"/>
+      <list n="LOCAL_FILES"/>
+      <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.proxy.WebServiceProxy"/>
+      <url n="ORACLE_WEBSERVICES_XML" path="ProquestFilerService.xml"/>
+      <hash n="PROPERTY_GROUPS">
+         <hash n="WSDL_TO_JAVA_PROPERTIES">
+            <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.java.WSDLToJavaProperties"/>
+            <value n="WSDL2JAVA_DEFAULT_PACKAGE" v="edu.ucla.grad.commservices.gd"/>
+            <value n="WSDL2JAVA_ROOT_VALUE_PACKAGE" v="edu.ucla.grad.commservices.gd"/>
+         </hash>
+      </hash>
+      <value n="PROXY_ASYNC_METHODS" v="FOR_ENABLED"/>
+      <list n="PROXY_CLIENTS">
+         <url path="WsHttpEndpointClient.java"/>
+      </list>
+      <value n="PROXY_MAPPING_URL"/>
+      <url n="PROXY_ORIGINAL_WSDL_URL" protocol="https" host="gd.commservices.grad.ucla.edu" path="/GD.CommServices.ProquestFilerService.svc" query="wsdl"/>
+      <hash n="PROXY_PORTS">
+         <hash n="wsHttpEndpoint">
+            <value n="ACCESSES_DOC_WRAPPPED" v="true"/>
+            <value n="ACCESSES_RPC_ENCODED" v="false"/>
+            <value n="CLASS_NAME" v="edu.ucla.grad.commservices.gd.IProquestFilerService"/>
+            <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.proxy.ProxyPort"/>
+            <value n="NAME" v="wsHttpEndpoint"/>
+            <hash n="OPERATIONS">
+               <hash n="getProquestFilerForProquestID">
+                  <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.proxy.ProxyOperation"/>
+                  <hash n="PROPERTY_GROUPS"/>
+               </hash>
+               <hash n="getProquestFilersForAll">
+                  <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.proxy.ProxyOperation"/>
+                  <hash n="PROPERTY_GROUPS"/>
+               </hash>
+            </hash>
+            <hash n="PROPERTY_GROUPS">
+               <hash n="WS_CLIENT_POLICY">
+                  <value n="addressing" v="oracle/wsaddr_policy"/>
+                  <list n="management"/>
+                  <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.policy.PolicyClientModel"/>
+                  <value n="mtom"/>
+                  <hash n="POLICY_OVERRIDE_PROPERTIES"/>
+                  <list n="security"/>
+                  <value n="wsrm"/>
+               </hash>
+            </hash>
+            <url n="PROXY_ORIGINAL_PORT_ENDPOINT" protocol="https" host="gd.commservices.grad.ucla.edu" path="/GD.CommServices.ProquestFilerService.svc"/>
+         </hash>
+      </hash>
+      <value n="PROXY_SERVICE_NAME" v="ProquestFilerService"/>
+      <value n="PROXY_SERVICE_NAMESPACE" v="http://tempuri.org/"/>
+      <url n="PROXY_TARGET_PROJECT" path="../../../../../../EtdsCopier.jpr"/>
+      <list n="PROXY_WSDL_IMPORT_LIST">
+         <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd3.xsd"/>
+         <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd2.xsd"/>
+         <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd1.xsd"/>
+         <url path="GD.CommServices.ProquestFilerService.svc_xsd_xsd0.xsd"/>
+      </list>
+      <url n="PROXY_WSDL_URL" path="ProquestFilerService.wsdl"/>
+      <hash n="REFERENCED_WEBSERVICE">
+         <list n="BD_">
+            <hash>
+               <value n="BD_SOAP_VERSION" v="1.2"/>
+               <value n="BOUND_PORT_TYPE" v="{http://tempuri.org/}IProquestFilerService"/>
+               <value n="DEFAULT_NAME" v="false"/>
+               <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.SOAPBinding"/>
+               <value n="NAME" v="{http://tempuri.org/}wsHttpEndpoint"/>
+               <list n="OP_BINDINGS">
+                  <hash>
+                     <value n="BOUND_OPERATION" v="edu.ucla.grad.commservices.gd.ReturnResultsForProquestFilers.getProquestFilersForAll.java.lang.String"/>
+                     <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.SOAPOperationBinding"/>
+                     <hash n="PROPERTY_GROUPS"/>
+                  </hash>
+                  <hash>
+                     <value n="BOUND_OPERATION" v="edu.ucla.grad.commservices.gd.ReturnResultsForProquestFilersByID.getProquestFilerForProquestID.java.lang.String.java.lang.String"/>
+                     <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.SOAPOperationBinding"/>
+                     <hash n="PROPERTY_GROUPS"/>
+                  </hash>
+               </list>
+               <hash n="PROPERTY_GROUPS"/>
+            </hash>
+         </list>
+         <list n="BINDING_FILES"/>
+         <value n="GUID" v="6323f19a-0150-1000-8002-a443981b57e1"/>
+         <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.proxy.WebServiceProxy$ProxyJavaWebService"/>
+         <list n="PO_">
+            <hash>
+               <value n="DEFAULT_NAME" v="false"/>
+               <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.SOAPPort"/>
+               <value n="NAME" v="wsHttpEndpoint"/>
+               <value n="PORT_BINDING_NAME" v="{http://tempuri.org/}wsHttpEndpoint"/>
+               <list n="PORT_OPS">
+                  <hash>
+                     <value n="EXPOSED_BD_OPERATION" v="edu.ucla.grad.commservices.gd.ReturnResultsForProquestFilers.getProquestFilersForAll.java.lang.String"/>
+                     <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.PortOperation"/>
+                     <hash n="PROPERTY_GROUPS"/>
+                  </hash>
+                  <hash>
+                     <value n="EXPOSED_BD_OPERATION" v="edu.ucla.grad.commservices.gd.ReturnResultsForProquestFilersByID.getProquestFilerForProquestID.java.lang.String.java.lang.String"/>
+                     <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.PortOperation"/>
+                     <hash n="PROPERTY_GROUPS"/>
+                  </hash>
+               </list>
+               <hash n="PROPERTY_GROUPS"/>
+               <url n="URL" protocol="https" host="gd.commservices.grad.ucla.edu" path="/GD.CommServices.ProquestFilerService.svc"/>
+            </hash>
+         </list>
+         <hash n="PROPERTY_GROUPS">
+            <hash n="WSDL_TO_JAVA_PROPERTIES">
+               <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.java.WSDLToJavaProperties"/>
+               <value n="WSDL2JAVA_DEFAULT_PACKAGE" v="edu.ucla.grad.commservices.gd"/>
+               <value n="WSDL2JAVA_ROOT_VALUE_PACKAGE" v="edu.ucla.grad.commservices.gd"/>
+            </hash>
+         </hash>
+         <list n="PT_">
+            <hash>
+               <value n="AUTO_SERVICE_INTERFACE"/>
+               <value n="DEFAULT_NAME" v="false"/>
+               <value n="MODEL_CLASS" v="oracle.jdeveloper.webservices.model.java.JavaPortType"/>
+               <value n="NAME" v="{http://tempuri.org/}IProquestFilerService"/>
+               <hash n="PROPERTY_GROUPS"/>
+               <value n="PT_CLASS" v="edu.ucla.grad.commservices.gd.IProquestFilerServiceImpl"/>
+               <value n="PT_SERVICE_INTERFACE" v="edu.ucla.grad.commservices.gd.IProquestFilerService"/>
+            </hash>
+         </list>
+         <url n="TARGET_PROJECT" path="../../../../../../EtdsCopier.jpr"/>
+         <value n="WS_ORIG_GEN_DIRECTION" v="TOP_DOWN"/>
+         <value n="WS_TARGET_NAMESPACE" v="http://tempuri.org/"/>
+         <value n="WS_URI" v="ProquestFilerService"/>
+         <url n="WS_WSDL_FILE" protocol="https" host="gd.commservices.grad.ucla.edu" path="/GD.CommServices.ProquestFilerService.svc" query="wsdl"/>
+      </hash>
+      <value n="SERVICE_ASYNC" v="false"/>
+      <value n="USE_WSDL_LOCATION" v="true"/>
+   </hash>
+</jdevws:WebServiceProxy>

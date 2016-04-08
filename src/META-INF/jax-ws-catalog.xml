@@ -1,0 +1,4 @@
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <system systemId="https://gd.commservices.grad.ucla.edu/GD.CommServices.ProquestFilerService.svc?wsdl"
+          uri="../edu/ucla/grad/commservices/gd/ProquestFilerService.wsdl"/>
+</catalog>

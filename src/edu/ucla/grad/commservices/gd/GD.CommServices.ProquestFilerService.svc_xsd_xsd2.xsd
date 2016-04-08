@@ -1,0 +1,23 @@
+<xs:schema elementFormDefault="qualified" targetNamespace="http://schemas.datacontract.org/2004/07/GD.CommServices"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://schemas.datacontract.org/2004/07/GD.CommServices">
+    <xs:import schemaLocation="GD.CommServices.ProquestFilerService.svc_xsd_xsd3.xsd" namespace="http://schemas.datacontract.org/2004/07/GD.CommServices.Model"/>
+    <xs:complexType name="ReturnResultsForProquestFilers">
+        <xs:sequence>
+            <xs:element minOccurs="0" name="Count" type="xs:int"/>
+            <xs:element minOccurs="0" name="Message" nillable="true" type="xs:string"/>
+            <xs:element minOccurs="0" name="ProquestFilers" nillable="true" type="q1:ArrayOfvwProQuestFiler"
+                 xmlns:q1="http://schemas.datacontract.org/2004/07/GD.CommServices.Model"/>
+            <xs:element minOccurs="0" name="Result" type="xs:int"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="ReturnResultsForProquestFilers" nillable="true" type="tns:ReturnResultsForProquestFilers"/>
+    <xs:complexType name="ReturnResultsForProquestFilersByID">
+        <xs:sequence>
+            <xs:element minOccurs="0" name="Message" nillable="true" type="xs:string"/>
+            <xs:element minOccurs="0" name="ProquestFiler" nillable="true" type="q2:vwProQuestFiler"
+                 xmlns:q2="http://schemas.datacontract.org/2004/07/GD.CommServices.Model"/>
+            <xs:element minOccurs="0" name="Result" type="xs:int"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="ReturnResultsForProquestFilersByID" nillable="true" type="tns:ReturnResultsForProquestFilersByID"/>
+</xs:schema>
