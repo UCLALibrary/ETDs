@@ -50,9 +50,9 @@ public class Class3
   {
     ds = new DriverManagerDataSource();
     ds.setDriverClassName( "oracle.jdbc.OracleDriver" );
-    ds.setUrl( "jdbc:oracle:thin:@ils-db-prod.library.ucla.edu:1521:VGER" );
-    ds.setUsername( "vger_support" );
-    ds.setPassword( "vger_support_pwd" );
+    ds.setUrl( "url" );
+    ds.setUsername( "user" );
+    ds.setPassword( "pwd" );
   }
 
   private static void processFile( String fileName, int embargo )
