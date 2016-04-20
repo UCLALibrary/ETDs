@@ -22,8 +22,8 @@ public class Class6
 
     Class.forName( "oracle.jdbc.OracleDriver" );
     impcdb =
-        DriverManager.getConnection( "jdbc:oracle:thin:@ils-db-prod.library.ucla.edu:1521:VGER",
-                                     "vger_support", "vger_support_pwd" );
+        DriverManager.getConnection( "url",
+                                     "user", "pwd" );
     ps =
         impcdb.prepareStatement( "SELECT proq_id FROM vger_support.remaining_backlog" );
     rs = ps.executeQuery();
