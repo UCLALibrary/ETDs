@@ -636,4 +636,4 @@ _phase_1
 _phase_2
 _phase_3
 _phase_4
-
+echo "Finished processing: `date`"
