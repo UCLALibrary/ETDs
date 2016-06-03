@@ -4,6 +4,21 @@
 # Define various functions which will do discrete pieces of the processing.
 
 ###########################################################################
+# Allow only one instance of this script to run;
+# Exit if already running.
+_exit_if_already_running() {
+  MY_PID=$$
+  MY_NAME=`basename $0`
+  echo "Starting process ${MY_PID} for ${MY_NAME}..."
+  OTHERS=`ps -ef | grep ${MY_NAME} | grep -v "sh -c" | grep -v grep | grep -v ${MY_PID} | wc -l`
+  if [ ${OTHERS} -gt 0 ]; then
+    echo "${MY_NAME} is already running - exiting this new instance"
+    exit 1
+  fi
+}
+###########################################################################
+
+###########################################################################
 # Initialize script with configuration.
 _initialize() {
   # Get full path to script, to use as base
@@ -629,6 +644,7 @@ _phase_4() {
 
 ###########################################################################
 # Main routine starts here.
+_exit_if_already_running
 _initialize
 
 # TODO: Controller to handle command-line arguments
