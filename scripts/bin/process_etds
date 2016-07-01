@@ -198,7 +198,7 @@ _log_etd_metadata() {
     # Capture everything we want except UCLA acceptance and release dates, which we'll get later.
     printf '%s\t%s\t%s\t%s\n' ${PROQUEST_ID} ${ETD_NAME} ${ETD_DATE} "${DATA}" > ${TMPFILE}
     # Import the data into database.
-    ${BIN}/vger_sqlldr_load ${SCHEMA} ${TMPFILE} ${SQL_BASE}/etd_metadata.ctl
+    ${VGER_SCRIPT}/vger_sqlldr_load ${SCHEMA} ${TMPFILE} ${SQL_BASE}/etd_metadata.ctl
     # TODO: Check vger_sqlldr_load log for errors and handle accordingly.
     # Remove data file and log from vger_sqlldr_load
     rm ${TMPFILE} ${TMPFILE}.log
@@ -283,7 +283,7 @@ _log_ucla_dates() {
   # Need to escape-quote dates to preserve quotes for vger_sqlplus_run
   SQL_SCRIPT=${SQL_BASE}/etd_ucla_dates_add.sql
   # Suppress output from vger_sqlplus_run
-  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} \"${UCLA_ACCEPT_DATE}\" \"${UCLA_RELEASE_DATE}\" > /dev/null
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} \"${UCLA_ACCEPT_DATE}\" \"${UCLA_RELEASE_DATE}\" > /dev/null
   rm ${SQL_SCRIPT}.out
 }
 
@@ -413,7 +413,7 @@ _load_marc_records() {
     # vger_bulkimport_file puts logs in current directory
     cd ${MARC_INCOMING}
     _DEBUG "Loading ${MARC_FILE} into Voyager..."
-    ${BIN}/vger_bulkimport_file ${MARC_FILE} ucladb ETDCDL
+    ${VGER_SCRIPT}/vger_bulkimport_file ${MARC_FILE} ucladb ETDCDL
     # Get filename without directory, so we can match it with the log
     MARC_BASE_FILENAME=`basename ${MARC_FILE}`
     mv *${MARC_BASE_FILENAME}* ${MARC_ARCHIVE}
@@ -426,7 +426,7 @@ _update_marc_status() {
   _DEBUG "Updating MARC status..."
   SQL_SCRIPT=${SQL_BASE}/etd_link_to_voyager.sql
   # Suppress output from vger_sqlplus_run
-  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} > /dev/null
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} > /dev/null
   # Include output from sql script in this script's output
   cat ${SQL_SCRIPT}.out
   rm ${SQL_SCRIPT}.out
@@ -490,7 +490,7 @@ _send_status_by_email() {
   PROQUEST_ID=$1
   SQL_SCRIPT=${SQL_BASE}/show_etd_status.sql
   # Suppress output from vger_sqlplus_run
-  $BIN/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} > /dev/null
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} > /dev/null
   # Send results (if any) via email 
   if [ -s ${SQL_SCRIPT}.out ]; then
     cat ${SQL_SCRIPT}.out | mailx -s "ProQuest ETD ${PROQUEST_ID} sent to CDL" "${EMAIL_RECIPIENTS}"
@@ -505,7 +505,7 @@ _get_ids_by_status() {
   STATUS=$1
   SQL_SCRIPT=${SQL_BASE}/get_ids_by_status.sql
   # Suppress output from vger_sqlplus_run
-  $BIN/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${STATUS} > /dev/null
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${STATUS} > /dev/null
   # Send results (if any) to stdout
   if [ -s ${SQL_SCRIPT}.out ]; then
     cat ${SQL_SCRIPT}.out
@@ -520,7 +520,7 @@ _has_status() {
   PROQUEST_ID=$1
   STATUS=$2
   # Suppress output from vger_sqlplus_run
-  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_HAS_STATUS} ${PROQUEST_ID} ${STATUS} > /dev/null
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_HAS_STATUS} ${PROQUEST_ID} ${STATUS} > /dev/null
   # SQL output is either "true" or "false"; capture grep exit code and return that to caller.
   grep "true" ${SQL_HAS_STATUS}.out > /dev/null
   FOUND=$?
@@ -539,7 +539,7 @@ _log_message() {
   # Need to escape-quote MESSAGE to preserve quotes for vger_sqlplus_run
   SQL_SCRIPT=${SQL_BASE}/etd_status_add.sql
   # Suppress output from vger_sqlplus_run
-  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${ID} ${STATUS} \"${MESSAGE}\" > /dev/null
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${ID} ${STATUS} \"${MESSAGE}\" > /dev/null
   rm ${SQL_SCRIPT}.out
 }
 
@@ -585,7 +585,7 @@ _TEST() {
 # Run sql script for testing only
 _TEST_RUN_SQL() {
   SQL_SCRIPT=$1
-  ${BIN}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT}
+  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT}
   cat ${SQL_SCRIPT}.out
   rm ${SQL_SCRIPT}.out
 }
