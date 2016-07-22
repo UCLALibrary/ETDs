@@ -191,7 +191,8 @@ _log_etd_metadata() {
       DISS_accept_date DISS_submission@embargo_code \
       DISS_agreement_decision_date DISS_sales_restriction@remove DISS_delayed_release \
     `
-    ETD_DATE=`ls -E ${ETD} | awk '{print $6}'`
+    # RHEL doesn't have -E flag for ls, like Solaris
+    ETD_DATE=`ls -l --time-style=long-iso ${ETD} | awk '{print $6}'`
     ETD_NAME=`basename ${ETD}`
 
     TMPFILE=/tmp/etd_metadata.${PROQUEST_ID}
@@ -471,7 +472,7 @@ _delete_from_graddiv() {
   # subdirectories, remove files/subdirs if they exist, then the main dir.
   # sftp client prints echoes all commands; we don't care if the directories
   # don't exist, so ignore the output.
-  SUBDIR=`echo "ls -l ${TARGET}" | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER} 2>/dev/null | tail +4 | grep "^d" | awk '{print $9}'`
+  SUBDIR=`echo "ls -l ${TARGET}" | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER} 2>/dev/null | tail -n +4 | grep "^d" | awk '{print $9}'`
   (
     if [ -n "${SUBDIR}" ]; then
       echo "rm ${TARGET}/${SUBDIR}/*"
