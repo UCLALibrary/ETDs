@@ -201,6 +201,9 @@ _log_etd_metadata() {
     # Import the data into database.
     ${VGER_SCRIPT}/vger_sqlldr_load ${SCHEMA} ${TMPFILE} ${SQL_BASE}/etd_metadata.ctl
     # TODO: Check vger_sqlldr_load log for errors and handle accordingly.
+    if [ -f ${TMPFILE}.bad ]; then
+      _log_error ${PROQUEST_ID} "Metadata failure: see ${TMPFILE}.bad"
+    fi
     # Remove data file and log from vger_sqlldr_load
     rm ${TMPFILE} ${TMPFILE}.log
   fi
