@@ -7,8 +7,6 @@ else
   PROQUEST_ID=$1
 fi
 
-# Get config info
-. 
 # Get full path to script, to use as base
 # Assumes scripts are in BASE/bin, config in BASE/config, etc.
 DIR=`dirname $0`
