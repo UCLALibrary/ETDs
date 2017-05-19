@@ -116,7 +116,7 @@ public class EtdMetaUpdater
         {
           if ( copyLine.contains( "DISS_agreement_decision_date" ) )
           {
-            writer.write( "<!-- Replacing PQ release with UCLA release -->" );
+            writer.write( "<!-- Replacing PQ acceptance with UCLA acceptance -->" );
             writer.write( "<!--" );
             writer.write( copyLine );
             writer.write( "-->" );
