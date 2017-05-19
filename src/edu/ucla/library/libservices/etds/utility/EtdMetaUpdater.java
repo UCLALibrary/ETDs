@@ -21,7 +21,7 @@ public class EtdMetaUpdater
   private static final SimpleDateFormat SHORT =
     new SimpleDateFormat( "MM/dd/yyyy" );
 
-  private static int embargoCode;
+  //private static int embargoCode;
   private static File xml;
   private static String pubDate;
   private static String releaseDate;
@@ -43,23 +43,23 @@ public class EtdMetaUpdater
     
     prepWriter();
     
-    if ( embargoCode == 0 )
+    //if ( embargoCode == 0 )
       updateNoEmbargo();
-    else
-      updateEmbargoed();
+    //else
+      //updateEmbargoed();
   }
 
   private static void populateFromInput( String[] args )
   {
     xml = new File( args[ 0 ] );
-    embargoCode = Integer.parseInt( args[ 1 ] );
-    pubDate = args[ 2 ];
-    releaseDate = args[ 3 ];
+    //embargoCode = Integer.parseInt( args[ 1 ] );
+    pubDate = args[ 1 ];
+    //releaseDate = args[ 3 ];
   }
 
   private static void verifyArgs( String[] args )
   {
-    if ( args.length != 4 )
+    if ( args.length != 2 )
     {
       System.err.println( "incorrect number of inputs" );
       System.exit( 1 );
