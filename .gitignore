@@ -1,0 +1,10 @@
+# ETD files and MARC record files
+files/
+
+# Compiled java programs
+java/
+
+# Logs from processing ETDs
+logs/
+
+

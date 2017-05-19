@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo Usage: $0 proquest_id
+  exit 1
+else
+  PROQUEST_ID=$1
+fi
+
+# Get full path to script, to use as base
+# Assumes scripts are in BASE/bin, config in BASE/config, etc.
+DIR=`dirname $0`
+BASE=`(cd $DIR/.. && pwd)`
+
+# Get config info
+CONFIG=${BASE}/config
+. ${CONFIG}/*
+
+UCLA_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
+
+echo UCLA Acceptance Date: ${UCLA_ACCEPT_DATE}
+
