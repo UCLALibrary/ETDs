@@ -233,6 +233,7 @@ _get_ucla_acceptance_date() {
     UCLA_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
     if [ "${UCLA_ACCEPT_DATE}" ]; then
       _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
+      _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}"
     else
       _log_error ${PROQUEST_ID} "No UCLA acceptance date from Graduate Division"
     fi
@@ -241,48 +242,13 @@ _get_ucla_acceptance_date() {
 }
 
 ###########################################################################
-# Calculate UCLA release date for ETD
-# If embargo code = 0, use UCLA acceptance date.
-# If embargo code = 4, calculate by passing several values to Java program.
-# Any other embargo code, log an error.
-_get_release_date() {
-  PROQUEST_ID=$1
-  _get_ucla_acceptance_date ${PROQUEST_ID}
-  if [ "${UCLA_ACCEPT_DATE}" ]; then
-    _get_embargo_code ${PROQUEST_ID}
-    case ${EMBARGO_CODE} in
-      0 ) UCLA_RELEASE_DATE=${UCLA_ACCEPT_DATE}
-	  ;;
-      4 ) _get_etd_xml ${PROQUEST_ID}
-          if [ -r ${XML} ]; then
-            PQ_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${TAG_FINDER} ${XML} DISS_accept_date`
-            PQ_RELEASE_DATE=`${JAVA} -cp "${CLASSPATH}" ${TAG_FINDER} ${XML} DISS_sales_restriction@remove`
-            # Convert date format for release date calculator
-            _DEBUG "BEFORE: PQ Acceptance date: ${PQ_ACCEPT_DATE} *** PQ Release date: ${PQ_RELEASE_DATE}"
-            PQ_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${DATE_FORMAT_CONVERTER} "${PQ_ACCEPT_DATE}" "MM/dd/yyyy" "yyyy-MM-dd HH:mm:ss"`
-	    PQ_RELEASE_DATE=`${JAVA} -cp "${CLASSPATH}" ${DATE_FORMAT_CONVERTER} "${PQ_RELEASE_DATE}" "MM/dd/yyyy" "yyyy-MM-dd HH:mm:ss"`
-            _DEBUG "AFTER : PQ Acceptance date: ${PQ_ACCEPT_DATE} *** PQ Release date: ${PQ_RELEASE_DATE}"
-          fi
-	  UCLA_RELEASE_DATE=`${JAVA} -cp "${CLASSPATH}" ${RELEASE_DATE_CALCULATOR} "${PQ_ACCEPT_DATE}" "${PQ_RELEASE_DATE}" "${UCLA_ACCEPT_DATE}"`
-          ;;
-      * ) UCLA_RELEASE_DATE=
-          _log_error ${PROQUEST_ID} "Cannot calculate UCLA release date for embargo code ${EMBARGO_CODE}"
-    esac
-    if [ "${UCLA_RELEASE_DATE}" ]; then
-      _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}" "${UCLA_RELEASE_DATE}"
-    else
-      _log_error ${PROQUEST_ID} "UCLA release date is empty"
-    fi
-    _DEBUG "UCLA Release date: ${UCLA_RELEASE_DATE}"
-  fi # ${UCLA_ACCEPT_DATE}
-}
-
-###########################################################################
 # Capture UCLA acceptance and release dates to database.
+# Per ETD-94, no longer sending UCLA release date to CDL, so set it to be the same
+# as UCLA acceptance date for logging / avoid changes to etd_metadata table.
 _log_ucla_dates() {
   PROQUEST_ID=$1
   UCLA_ACCEPT_DATE=$2
-  UCLA_RELEASE_DATE=$3
+  UCLA_RELEASE_DATE=${UCLA_ACCEPT_DATE}
   _DEBUG "${PROQUEST_ID} ***** ${UCLA_ACCEPT_DATE} ***** ${UCLA_RELEASE_DATE}"
   # Need to escape-quote dates to preserve quotes for vger_sqlplus_run
   SQL_SCRIPT=${SQL_BASE}/etd_ucla_dates_add.sql
@@ -293,21 +259,17 @@ _log_ucla_dates() {
 
 ###########################################################################
 # Update ETD XML metadata with embargo code and dates.
-# Requires: XML, EMBARGO_CODE, UCLA_ACCEPT_DATE and UCLA_RELEASE_DATE. 
+# Requires: XML and UCLA_ACCEPT_DATE.
 _update_etd_xml() {
   PROQUEST_ID=$1
-  # TODO: _get_release_date may or may not call _get_etd_xml
-  # _get_release_date needs to be called to set EMBARGO_CODE, UCLA_ACCEPT_DATE and UCLA_RELEASE_DATE
-  # Always call here, or check those values first?
-  # TODO: May need to check values anyhow - what if caller couldn't set some of them?
   _get_etd_xml ${PROQUEST_ID}
-  _get_release_date ${PROQUEST_ID}
+  _get_ucla_acceptance_date ${PROQUEST_ID}
 
-  if [ "${EMBARGO_CODE}" -a "${UCLA_ACCEPT_DATE}" -a "${UCLA_RELEASE_DATE}" ]; then
+  if [ "${UCLA_ACCEPT_DATE}" ]; then
     # Java program will throw meaningful error if XML not found or not readable/writeable, so no extra test here.
     # Make backup of XML first - while testing at least
     if _DEBUG_MODE; then cp -p ${XML} ${XML}.bak; fi
-    ${JAVA} -cp "${CLASSPATH}" ${ETD_METADATA_UPDATER} ${XML} ${EMBARGO_CODE} "${UCLA_ACCEPT_DATE}" "${UCLA_RELEASE_DATE}"
+    ${JAVA} -cp "${CLASSPATH}" ${ETD_METADATA_UPDATER} ${XML} "${UCLA_ACCEPT_DATE}"
     RETURN_CODE=$?
     if [ ${RETURN_CODE} -eq 0 ]; then
       _log_message ${PROQUEST_ID} ${STATUS_XML_UPDATED} "Updated XML file ${XML}"
@@ -317,7 +279,7 @@ _update_etd_xml() {
         rm ${XML}.bak
       fi
     else
-      _log_error ${PROQUEST_ID} "Could not update ${XML}: error code ${RETURN_CODE}, embargo code ${EMBARGO_CODE}, acceptance date ${UCLA_ACCEPT_DATE}, release date ${UCLA_RELEASE_DATE}"
+      _log_error ${PROQUEST_ID} "Could not update ${XML}: error code ${RETURN_CODE}, acceptance date ${UCLA_ACCEPT_DATE}"
     fi
   fi
 }
