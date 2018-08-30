@@ -13,6 +13,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import java.util.Vector;
+import java.nio.charset.StandardCharsets;
+//import java.nio.ByteBuffer;
 
 public class EtdMetaUpdater
 {
@@ -27,7 +29,7 @@ public class EtdMetaUpdater
   private static String releaseDate;
   private static Vector<String> lines;
   private static BufferedWriter writer;
-
+  
   public EtdMetaUpdater()
   {
     super();
@@ -78,7 +80,8 @@ public class EtdMetaUpdater
       theLine = null;
       while ( ( theLine = reader.readLine() ) != null )
       {
-        lines.add( theLine );
+        //lines.add( theLine );
+        lines.add( new String( StandardCharsets.UTF_8.encode(theLine).array() ).trim() );
       }
       reader.close();
     }
@@ -114,7 +117,14 @@ public class EtdMetaUpdater
       {
         for ( String copyLine: lines )
         {
-          if ( copyLine.contains( "DISS_agreement_decision_date" ) )
+          if ( copyLine.contains( "ISO-8859-1" ) )
+          {
+            writer.write( copyLine.substring( 0, copyLine.indexOf( "ISO-8859-1" ) ) );
+            writer.write( "UTF-8" );
+            writer.write( copyLine.substring( copyLine.indexOf( "ISO-8859-1" ) + 10 ) );
+            writer.newLine();
+          }
+          else if ( copyLine.contains( "DISS_agreement_decision_date" ) )
           {
             writer.write( "<!-- Replacing PQ acceptance with UCLA acceptance -->" );
             writer.write( "<!--" );
