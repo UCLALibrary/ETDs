@@ -7,12 +7,12 @@ TRAILING NULLCOLS
   proquest_id
 , etd_filename
 , etd_filedate DATE "YYYY-MM-DD"
-, author_surname
-, author_firstname
+, author_surname "substr(:author_surname, 1, 25)"
+, author_firstname "substr(:author_firstname, 1, 25)"
 , title CHAR(300) "substr(:title, 1, 300)"
-, degree
-, institutional_contact
-, category
+, degree "substr(:degree, 1, 20)"
+, institutional_contact "substr(:institutional_contact, 1, 75)"
+, category "substr(:category, 1, 50)"
 , proquest_accept_date DATE "MM/DD/YYYY"
 , embargo_code
 , agreement_decision_date DATE "YYYY-MM-DD HH24:MI:SS"
