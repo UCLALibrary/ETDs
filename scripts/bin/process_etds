@@ -99,7 +99,8 @@ _unzip_archive() {
       return 1
     else
       TARGET_DIR=${FILES_PENDING}/${PROQUEST_ID}
-      unzip -q ${ETD} -d ${TARGET_DIR}
+	  # Unzip, never overwriting files
+      unzip -q -n ${ETD} -d ${TARGET_DIR}
       RETURN_CODE=$?
       if [ ${RETURN_CODE} -eq 0 ]; then
 	_log_message ${PROQUEST_ID} ${STATUS_UNZIPPED} "Unzipped to ${TARGET_DIR}"
