@@ -598,8 +598,9 @@ _phase_2() {
 _phase_3() {
   _DEBUG "Phase 3"
   _get_marc_records_from_cdl
-  _load_marc_records
-  _update_marc_status
+  ### MARC load disabled now that Voyager is read-only 2021-10-27 akohler
+  ### _load_marc_records
+  ### _update_marc_status
 }
 
 ###########################################################################
