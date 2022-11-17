@@ -406,8 +406,7 @@ _delete_old_etds() {
   find ${FILES_ARCHIVE} -type f -name "etdadmin*.zip" -mtime +${DAYS_TO_KEEP} | while read ETD; do
     _get_proquest_id ${ETD}
     _DEBUG "Deleting old files for ${PROQUEST_ID}..."
-    if _has_status ${PROQUEST_ID} ${STATUS_TO_CDL} &&
-       _has_status ${PROQUEST_ID} ${STATUS_CDL_MARC}
+    if _has_status ${PROQUEST_ID} ${STATUS_TO_CDL}
     then
       # Delete the zip archive file
       _DEBUG "  Deleting ${ETD}"
