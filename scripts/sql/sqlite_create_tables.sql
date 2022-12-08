@@ -22,7 +22,7 @@ create table etd_metadata (
 create table etd_status (
   proquest_id varchar2(10) not null
 , status varchar2(20) not null
-, status_date timestamp default (datetime(CURRENT_TIMESTAMP, 'localtime')) not null 
+, status_date timestamp default (strftime('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')) not null
 , message varchar2(200) null
 , constraint pk_etd_status primary key (proquest_id, status_date)
 )

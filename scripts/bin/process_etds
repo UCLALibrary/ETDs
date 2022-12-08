@@ -454,14 +454,8 @@ _send_status_by_email() {
 # Get list of ProQuest IDs with a particular status
 _get_ids_by_status() {
   STATUS=$1
-  SQL_SCRIPT=${SQL_BASE}/get_ids_by_status.sql
-  # Suppress output from vger_sqlplus_run
-  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${STATUS} > /dev/null
-  # Send results (if any) to stdout
-  if [ -s ${SQL_SCRIPT}.out ]; then
-    cat ${SQL_SCRIPT}.out
-  fi
-  rm ${SQL_SCRIPT}.out
+  SQL="select proquest_id from etd_status s where status = '$1' and status_date = (select max(status_date) from etd_status where proquest_id = s.proquest_id) order by proquest_id"
+  sqlite3 ${DB} "${SQL}"
 }
 
 ###########################################################################
