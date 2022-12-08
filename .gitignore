@@ -7,4 +7,5 @@ java/
 # Logs from processing ETDs
 logs/
 
-
+# Database
+*.sqlite3

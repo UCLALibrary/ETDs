@@ -16,7 +16,6 @@ _exit_if_already_running() {
     exit 1
   fi
 }
-###########################################################################
 
 ###########################################################################
 # Initialize script with configuration.
@@ -196,17 +195,11 @@ _log_etd_metadata() {
     ETD_DATE=`ls -l --time-style=long-iso ${ETD} | awk '{print $6}'`
     ETD_NAME=`basename ${ETD}`
 
-    TMPFILE=/tmp/etd_metadata.${PROQUEST_ID}
-    # Capture everything we want except UCLA acceptance and release dates, which we'll get later.
-    printf '%s\t%s\t%s\t%s\n' ${PROQUEST_ID} ${ETD_NAME} ${ETD_DATE} "${DATA}" > ${TMPFILE}
-    # Import the data into database.
-    ${VGER_SCRIPT}/vger_sqlldr_load ${SCHEMA} ${TMPFILE} ${SQL_BASE}/etd_metadata.ctl
-    # TODO: Check vger_sqlldr_load log for errors and handle accordingly.
-    if [ -f ${TMPFILE}.bad ]; then
-      _log_error ${PROQUEST_ID} "Metadata failure: see ${TMPFILE}.bad"
-    fi
-    # Remove data file and log from vger_sqlldr_load
-    rm ${TMPFILE} ${TMPFILE}.log
+    # Split tab-delimited ${DATA} into individual fields for database insert
+    IFS=$'\t' read -r AUTHOR_SURNAME AUTHOR_FIRSTNAME TITLE DEGREE INSTITUTIONAL_CONTACT CATEGORY PROQUEST_ACCEPT_DATE EMBARGO_CODE AGREEMENT_DECISION_DATE SALES_RESTRICTION_DATE DELAYED_RELEASE_DATE <<< "${DATA}"
+    # Insert the data
+    SQL="insert into etd_metadata (proquest_id, etd_filename, etd_filedate, author_surname, author_firstname, title, degree, institutional_contact, category, proquest_accept_date, embargo_code, agreement_decision_date, sales_restriction_date, delayed_release_date) values ('${PROQUEST_ID}', '${ETD_NAME}', '${ETD_DATE}', '${AUTHOR_SURNAME}', '${AUTHOR_FIRSTNAME}', '${TITLE}', '${DEGREE}', '${INSTITUTIONAL_CONTACT}', '${CATEGORY}', '${PROQUEST_ACCEPT_DATE}', '${EMBARGO_CODE}', '${AGREEMENT_DECISION_DATE}', '${SALES_RESTRICTION_DATE}', '${DELAYED_RELEASE_DATE}')"
+    sqlite3 ${DB} --cmd ".mode tabs" "${SQL}"
   fi
 }
 
@@ -251,11 +244,9 @@ _log_ucla_dates() {
   UCLA_ACCEPT_DATE=$2
   UCLA_RELEASE_DATE=${UCLA_ACCEPT_DATE}
   _DEBUG "${PROQUEST_ID} ***** ${UCLA_ACCEPT_DATE} ***** ${UCLA_RELEASE_DATE}"
-  # Need to escape-quote dates to preserve quotes for vger_sqlplus_run
-  SQL_SCRIPT=${SQL_BASE}/etd_ucla_dates_add.sql
-  # Suppress output from vger_sqlplus_run
-  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} \"${UCLA_ACCEPT_DATE}\" \"${UCLA_RELEASE_DATE}\" > /dev/null
-  rm ${SQL_SCRIPT}.out
+  # Add these dates to the database
+  SQL="update etd_metadata set ucla_accept_date = '$2', ucla_release_date = '$2' where proquest_id = '$1';"
+  sqlite3 ${DB} "${SQL}"
 }
 
 ###########################################################################
@@ -454,15 +445,9 @@ _delete_from_graddiv() {
 # TODO: If needed, make this more generic
 _send_status_by_email() {
   PROQUEST_ID=$1
-  SQL_SCRIPT=${SQL_BASE}/show_etd_status.sql
-  # Suppress output from vger_sqlplus_run
-  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${PROQUEST_ID} > /dev/null
-  # Send results (if any) via email 
-  if [ -s ${SQL_SCRIPT}.out ]; then
-    cat ${SQL_SCRIPT}.out | mailx -s "ProQuest ETD ${PROQUEST_ID} sent to CDL" "${EMAIL_RECIPIENTS}"
-    _DEBUG "Sending email..."
-  fi
-  rm ${SQL_SCRIPT}.out
+  SQL="select * from etd_status where proquest_id = '$1' order by status_date"
+  # Pipe output through tr to strip characters Exchange doesn't like in email...
+  sqlite3 ${DB} "${SQL}" | tr -cd '\11\12\40-\176' | mailx -s "ProQuest ETD ${PROQUEST_ID} status info" "${EMAIL_RECIPIENTS}"
 }
 
 ###########################################################################
@@ -485,13 +470,10 @@ _get_ids_by_status() {
 _has_status() {
   PROQUEST_ID=$1
   STATUS=$2
-  # Suppress output from vger_sqlplus_run
-  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_HAS_STATUS} ${PROQUEST_ID} ${STATUS} > /dev/null
+  SQL="select case when count(*) = 0 then 'false' else 'true' end from etd_status where proquest_id = '$1' and status = '$2'"
   # SQL output is either "true" or "false"; capture grep exit code and return that to caller.
-  grep "true" ${SQL_HAS_STATUS}.out > /dev/null
+  sqlite3 ${DB} "${SQL}" | grep "true" > /dev/null
   FOUND=$?
-  # Clean up
-  rm ${SQL_HAS_STATUS}.out
   return ${FOUND}
 }
 
@@ -502,11 +484,8 @@ _log_message() {
   STATUS=$2
   MESSAGE=$3
   _DEBUG "${ID} ***** ${STATUS} ***** ${MESSAGE}"
-  # Need to escape-quote MESSAGE to preserve quotes for vger_sqlplus_run
-  SQL_SCRIPT=${SQL_BASE}/etd_status_add.sql
-  # Suppress output from vger_sqlplus_run
-  ${VGER_SCRIPT}/vger_sqlplus_run ${SCHEMA} ${SQL_SCRIPT} ${ID} ${STATUS} \"${MESSAGE}\" > /dev/null
-  rm ${SQL_SCRIPT}.out
+  SQL="insert into etd_status (proquest_id, status, message) values ('$1', '$2', '$3');"
+  sqlite3 ${DB} "${SQL}"
 }
 
 ###########################################################################
@@ -543,7 +522,36 @@ _DEBUG() {
 # Put test code here
 _TEST() {
 #  _TEST_CLEANUP
-  PROQUEST_ID=14099
+  ETD=${FILES_ARCHIVE}/etdadmin_upload_944157.zip
+  PROQUEST_ID=21345
+#   if _has_status ${PROQUEST_ID} ${STATUS_UNZIPPED}; then
+#     echo "oracle: ${PROQUEST_ID} is unzipped"
+#   fi
+#   if _has_status_lite ${PROQUEST_ID} ${STATUS_UNZIPPED}; then
+#     echo "sqlite: ${PROQUEST_ID} is unzipped"
+#   fi
+
+#   if _has_status ${PROQUEST_ID} ${STATUS_ERROR}; then
+#     echo "oracle: ${PROQUEST_ID} has error"
+#   else
+#     echo "oracle: ${PROQUEST_ID} has no errors"
+#   fi
+#   if _has_status_lite ${PROQUEST_ID} ${STATUS_ERROR}; then
+#     echo "sqlite: ${PROQUEST_ID} has error"
+#   else
+#     echo "sqlite: ${PROQUEST_ID} has no errors"
+#   fi
+
+#   _log_message 99999 TESTING "This is a test message"
+  _log_etd_metadata ${ETD}
+
+  UCLA_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
+  if [ "${UCLA_ACCEPT_DATE}" ]; then
+      _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
+      _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}"
+  else
+      _log_error ${PROQUEST_ID} "No UCLA acceptance date from Graduate Division"
+  fi
   _send_status_by_email ${PROQUEST_ID}
 }
 
@@ -620,3 +628,4 @@ _phase_2
 _phase_3
 _phase_4
 echo "Finished processing: `date`"
+#_TEST
