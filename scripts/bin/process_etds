@@ -224,7 +224,7 @@ _get_ucla_acceptance_date() {
     # No action - can't negate the _has_status function call for some reason, so use "empty" statement colon
     :
   else
-    UCLA_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
+    UCLA_ACCEPT_DATE=`python ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
     if [ "${UCLA_ACCEPT_DATE}" ]; then
       _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
       _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}"
@@ -539,7 +539,7 @@ _TEST() {
 #   _log_message 99999 TESTING "This is a test message"
   _log_etd_metadata ${ETD}
 
-  UCLA_ACCEPT_DATE=`${JAVA} -cp "${CLASSPATH}" ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
+  UCLA_ACCEPT_DATE=`python ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
   if [ "${UCLA_ACCEPT_DATE}" ]; then
       _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
       _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}"
