@@ -86,6 +86,19 @@ _get_proquest_id() {
 }
 
 ###########################################################################
+# Check database for duplicate ProQuest id and return number of times it exists.
+# Bash return values: 0 = success, non-0 = error.
+_is_id_unique() {
+  PROQUEST_ID=$1
+  OCCURRENCES=0
+  if [ ${PROQUEST_ID} -ne 0 ]; then
+    SQL="select count(*) from etd_metadata where proquest_id = '$1'"
+    OCCURRENCES=`sqlite3 ${DB} "${SQL}"`
+  fi
+  return ${OCCURRENCES}
+}
+
+###########################################################################
 # Unzip ETD archive into subdirectory named for ProQuest id
 _unzip_archive() {
   ETD=$1
@@ -576,8 +589,14 @@ _phase_1() {
   find ${FILES_INCOMING} -type f -name "etdadmin*.zip" | while read ETD; do
     # Need to get ProQuest ID before deleting zip file after unzipping
     _get_proquest_id ${ETD}
-    _unzip_archive ${ETD}
-    _send_files_to_graddiv ${PROQUEST_ID}
+    if _is_id_unique ${PROQUEST_ID}; then
+      # Return value 0: unique, so continue processing
+      _unzip_archive ${ETD}
+      _send_files_to_graddiv ${PROQUEST_ID}
+    else
+      # Return value non-0: duplicate, so log error
+      _log_error ${PROQUEST_ID} "Incoming ETD ${ETD}: ProQuest ID ${PROQUEST_ID} already exists"
+    fi
   done
 }
 
