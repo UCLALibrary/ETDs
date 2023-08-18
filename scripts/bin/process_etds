@@ -115,16 +115,16 @@ _unzip_archive() {
       unzip -q -n ${ETD} -d ${TARGET_DIR}
       RETURN_CODE=$?
       if [ ${RETURN_CODE} -eq 0 ]; then
-	_log_message ${PROQUEST_ID} ${STATUS_UNZIPPED} "Unzipped to ${TARGET_DIR}"
-	# Unzip succeeded, so delete original ETD zip file once we're done with it
-	_log_etd_metadata ${ETD}
-	# TODO: On success, should also delete original ETD from UCLA_SFTP_INCOMING
-	_DEBUG "Archiving ${ETD}"
-	mv ${ETD} ${FILES_ARCHIVE}
-	# TODO: Use sftp batch mode for better error handling?
-	SFTP_ETD=`basename ${ETD}`
-	_DEBUG "Deleting ${UCLA_SFTP_INCOMING}/${SFTP_ETD}"
-	echo "rm ${UCLA_SFTP_INCOMING}/${SFTP_ETD}" | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER}
+        _log_message ${PROQUEST_ID} ${STATUS_UNZIPPED} "Unzipped to ${TARGET_DIR}"
+        # Unzip succeeded, so delete original ETD zip file once we're done with it
+        _log_etd_metadata ${ETD}
+        # TODO: On success, should also delete original ETD from UCLA_SFTP_INCOMING
+        _DEBUG "Archiving ${ETD}"
+        mv ${ETD} ${FILES_ARCHIVE}
+        # TODO: Use sftp batch mode for better error handling?
+        SFTP_ETD=`basename ${ETD}`
+        _DEBUG "Deleting ${UCLA_SFTP_INCOMING}/${SFTP_ETD}"
+        echo "rm ${UCLA_SFTP_INCOMING}/${SFTP_ETD}" | sftp ${UCLA_SFTP_USER}@${UCLA_SFTP_SERVER}
       else
         _log_error ${PROQUEST_ID} "Non-zero return code ${RETURN_CODE} unzipping ${ETD}"
       fi
@@ -280,7 +280,7 @@ _update_etd_xml() {
       _log_message ${PROQUEST_ID} ${STATUS_XML_UPDATED} "Updated XML file ${XML}"
       _DEBUG "XML changes"
       if _DEBUG_MODE; then 
-	diff -U0 ${XML}.bak ${XML}
+        diff -U0 ${XML}.bak ${XML}
         rm ${XML}.bak
       fi
     else
@@ -420,7 +420,7 @@ _delete_old_etds() {
         _DEBUG "  Deleting ${FILES_PENDING}/${PROQUEST_ID}"
         rm -r ${FILES_PENDING}/${PROQUEST_ID}
       else
-	_DEBUG "  Not found: ${FILES_PENDING}/${PROQUEST_ID}"
+        _DEBUG "  Not found: ${FILES_PENDING}/${PROQUEST_ID}"
       fi
       # Delete graddiv copy from SFTP
       _delete_from_graddiv ${PROQUEST_ID}
@@ -554,10 +554,10 @@ _TEST() {
 
   UCLA_ACCEPT_DATE=`python ${GRAD_SERVICE_CLIENT} ${GRAD_SERVICE_KEY} ${PROQUEST_ID}`
   if [ "${UCLA_ACCEPT_DATE}" ]; then
-      _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
-      _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}"
+    _log_message ${PROQUEST_ID} ${STATUS_ACCEPTED} "UCLA acceptance date: ${UCLA_ACCEPT_DATE}"
+    _log_ucla_dates ${PROQUEST_ID} "${UCLA_ACCEPT_DATE}"
   else
-      _log_error ${PROQUEST_ID} "No UCLA acceptance date from Graduate Division"
+    _log_error ${PROQUEST_ID} "No UCLA acceptance date from Graduate Division"
   fi
   _send_status_by_email ${PROQUEST_ID}
 }
