@@ -616,8 +616,9 @@ _phase_2() {
 ###########################################################################
 # Phase 3: Retrieve MARC records from CDL and load into Voyager
 _phase_3() {
-  _DEBUG "Phase 3"
-  _get_marc_records_from_cdl
+  _DEBUG "Phase 3: MARC records no longer loaded here"
+  ### MARC records from CDL now go by email to catalogers for loading into Alma 2021-11-02 akohler
+  ### _get_marc_records_from_cdl
   ### MARC load disabled now that Voyager is read-only 2021-10-27 akohler
   ### _load_marc_records
   ### _update_marc_status
